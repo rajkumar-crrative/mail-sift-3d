@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MailSift3D - Elite Email Sorting & Security Engine</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        @keyframes laserScan {
+            0% { top: 0%; opacity: 0.8; }
+            50% { opacity: 1; }
+            100% { top: 100%; opacity: 0.8; }
+        }
+        .laser-line {
+            animation: laserScan 2s linear infinite;
+        }
+        .glass-panel {
+            background: rgba(15, 23, 42, 0.75);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(56, 189, 248, 0.2);
+        }
+    </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen font-sans relative overflow-x-hidden">
+
+    <!-- 3D Background Canvas -->
+    <div id="canvas-container" class="fixed inset-0 pointer-events-none z-0"></div>
+
+    <div class="max-w-6xl mx-auto px-4 py-8 relative z-10">
+        <!-- Header & Developer Branding -->
+        <header class="text-center mb-8">
+            <div class="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-cyan-500/10 border border-cyan-500/30 text-cyan-400 text-xs font-mono uppercase tracking-widest mb-3">
+                <span>🛡️ Client-Side Private & Secure Engine</span>
+            </div>
+            <h1 class="text-4xl md:text-6xl font-black tracking-tight bg-gradient-to-r from-cyan-400 via-indigo-400 to-purple-500 bg-clip-text text-transparent">
+                MailSift3D
+            </h1>
+            <p class="text-slate-400 mt-2 text-base md:text-lg">स्मार्ट ईमेल सॉर्टिंग, बॉट पहचान और डोमेन-वाइज़ एक्सेल एक्सपोर्ट इंजन</p>
+
+            <!-- Developer Badge -->
+            <div class="mt-4 inline-flex items-center gap-3 bg-slate-900/90 border border-amber-500/30 px-5 py-2.5 rounded-2xl shadow-lg">
+                <span class="text-xs text-slate-400 font-semibold uppercase">Lead Architect:</span>
+                <span class="text-amber-400 font-bold tracking-wide">Rajkumar Ahirwar</span>
+                <span class="text-slate-600">|</span>
+                <span class="text-xs font-mono text-slate-300">ahirwarrajkumar518@gmail.com</span>
+            </div>
+        </header>
+
+        <!-- Main Workspace -->
+        <div class="glass-panel rounded-3xl p-6 md:p-8 shadow-2xl relative overflow-hidden">
+            <div id="laserScanner" class="hidden absolute inset-x-0 h-1 bg-cyan-400 laser-line shadow-[0_0_15px_#22d3ee] z-20"></div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                <!-- Text Input -->
+                <div>
+                    <label class="block text-sm font-semibold text-slate-300 mb-2">1. डायरेक्ट ईमेल पेस्ट करें (Direct Paste):</label>
+                    <textarea id="emailPasteInput" rows="6" class="w-full bg-slate-900/90 border border-slate-800 rounded-2xl p-4 text-sm font-mono text-slate-200 focus:outline-none focus:border-cyan-500 transition" placeholder="example1@gmail.com&#10;test.user@yahoo.com&#10;bot12345@tempmail.com"></textarea>
+                </div>
+
+                <!-- Excel Upload Input -->
+                <div class="flex flex-col justify-center items-center border-2 border-dashed border-slate-800 hover:border-cyan-500/50 rounded-2xl p-6 transition bg-slate-900/40 text-center">
+                    <svg class="w-12 h-12 text-slate-500 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path></svg>
+                    <label class="block text-sm font-semibold text-slate-300 mb-1">2. एक्सेल / CSV फाइल अपलोड करें</label>
+                    <span class="text-xs text-slate-500 mb-4">(.xlsx, .xls, .csv सपोर्टेड)</span>
+                    <input type="file" id="fileInput" accept=".xlsx, .xls, .csv" class="hidden" onchange="handleFileUpload(event)">
+                    <button onclick="document.getElementById('fileInput').click()" class="px-5 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold rounded-xl transition">
+                        📂 Choose File from Computer
+                    </button>
+                    <div id="fileNameDisplay" class="mt-3 text-xs text-cyan-400 font-mono"></div>
+                </div>
+            </div>
+
+            <!-- Start Button -->
+            <div class="flex flex-col sm:flex-row items-center justify-between gap-4 border-t border-slate-800/80 pt-6">
+                <button onclick="processEmails()" id="scanBtn" class="w-full sm:w-auto px-8 py-4 bg-gradient-to-r from-cyan-500 via-indigo-600 to-purple-600 text-white font-black rounded-2xl shadow-lg hover:shadow-cyan-500/25 transition transform hover:-translate-y-0.5 active:translate-y-0">
+                    🚀 Start Smart Scan & Sift
+                </button>
+                <div class="text-xs text-slate-400 flex items-center gap-2">
+                    <span class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
+                    100% In-Browser Privacy Protection Enabled
+                </div>
+            </div>
+        </div>
+
+        <!-- Control Dashboard & Results -->
+        <div id="dashboardSection" class="mt-8 glass-panel rounded-3xl p-6 md:p-8 hidden">
+            <h2 class="text-xl font-bold text-slate-200 mb-4 flex items-center justify-between">
+                <span>📊 Sifting Control Dashboard</span>
+                <span id="totalCountBadge" class="text-xs px-3 py-1 bg-cyan-500/20 text-cyan-400 rounded-full font-mono"></span>
+            </h2>
+
+            <!-- Export Buttons -->
+            <div class="flex flex-wrap gap-3 mb-6">
+                <button onclick="exportData('genuine')" class="px-4 py-2.5 bg-green-600/20 hover:bg-green-600/30 border border-green-500/40 text-green-300 text-xs font-bold rounded-xl transition">
+                    🟢 Download Genuine Only (.xlsx)
+                </button>
+                <button onclick="exportData('bot')" class="px-4 py-2.5 bg-purple-600/20 hover:bg-purple-600/30 border border-purple-500/40 text-purple-300 text-xs font-bold rounded-xl transition">
+                    🤖 Download Bot / Generated Only (.xlsx)
+                </button>
+                <button onclick="exportData('dead')" class="px-4 py-2.5 bg-red-600/20 hover:bg-red-600/30 border border-red-500/40 text-red-300 text-xs font-bold rounded-xl transition">
+                    🔴 Download Dead / Invalid (.xlsx)
+                </button>
+                <button onclick="exportData('all')" class="px-4 py-2.5 bg-cyan-600/20 hover:bg-cyan-600/30 border border-cyan-500/40 text-cyan-300 text-xs font-bold rounded-xl transition">
+                    📦 Download Complete Master Sheet (.xlsx)
+                </button>
+            </div>
+
+            <!-- Domain Select Dropdown -->
+            <div class="mb-6 flex items-center gap-4 bg-slate-900/60 p-4 rounded-2xl border border-slate-800">
+                <label class="text-xs font-bold text-slate-400 uppercase">Filter By Domain:</label>
+                <select id="domainFilter" onchange="applyFilters()" class="bg-slate-950 border border-slate-700 rounded-xl px-4 py-2 text-xs text-slate-200 focus:outline-none">
+                    <option value="ALL">All Domains</option>
+                </select>
+            </div>
+
+            <!-- Results Table -->
+            <div class="rounded-2xl border border-slate-800 overflow-hidden">
+                <div class="max-h-96 overflow-y-auto">
+                    <table class="w-full text-left text-xs border-collapse">
+                        <thead class="bg-slate-900 sticky top-0 text-slate-400 border-b border-slate-800">
+                            <tr>
+                                <th class="p-3">Email Address</th>
+                                <th class="p-3">Domain</th>
+                                <th class="p-3">Status</th>
+                                <th class="p-3">Category</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tableBody" class="divide-y divide-slate-800/60 font-mono"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <footer class="mt-12 text-center text-xs text-slate-500 border-t border-slate-900 pt-6">
+            Designed & Developed by <span class="text-cyan-400 font-bold">Rajkumar Ahirwar</span> | Contact: ahirwarrajkumar518@gmail.com
+        </footer>
+    </div>
+
+    <!-- JavaScript Logic -->
+    <script>
+        let parsedEmails = [];
+        let processedResults = [];
+
+        // Three.js 3D Background
+        const container = document.getElementById('canvas-container');
+        const scene = new Three.Scene();
+        const camera = new Three.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new Three.WebGLRenderer({ alpha: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        container.appendChild(renderer.domElement);
+
+        const geometry = new Three.BufferGeometry();
+        const count = 300;
+        const positions = new Float32Array(count * 3);
+        for(let i=0; i<count*3; i++) positions[i] = (Math.random() - 0.5) * 10;
+        geometry.setAttribute('position', new Three.BufferAttribute(positions, 3));
+        const material = new Three.PointsMaterial({ size: 0.02, color: 0x38bdf8 });
+        const points = new Three.Points(geometry, material);
+        scene.add(points);
+        camera.position.z = 5;
+
+        function animate() {
+            requestAnimationFrame(animate);
+            points.rotation.y += 0.001;
+            points.rotation.x += 0.0005;
+            renderer.render(scene, camera);
+        }
+        animate();
+
+        // Handle File Upload
+        function handleFileUpload(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            document.getElementById('fileNameDisplay').innerText = `Selected: ${file.name}`;
+            const reader = new FileReader();
+            reader.onload = function(evt) {
+                const data = new Uint8Array(evt.target.result);
+                const workbook = XLSX.read(data, { type: 'array' });
+                const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+                const jsonData = XLSX.utils.sheet_to_json(firstSheet, { header: 1 });
+                parsedEmails = [];
+                jsonData.forEach(row => {
+                    row.forEach(cell => {
+                        if (typeof cell === 'string' && cell.includes('@')) {
+                            parsedEmails.push(cell.trim());
+                        }
+                    });
+                });
+                alert(`फाइल से ${parsedEmails.length} ईमेल सफलतापूर्वक पढ़ ली गईं!`);
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
+        // Process Emails
+        function processEmails() {
+            const pasteText = document.getElementById('emailPasteInput').value;
+            let emails = [...parsedEmails];
+            if (pasteText.trim()) {
+                const pastedList = pasteText.replace(/,/g, '\n').split('\n').map(e => e.strip ? e.strip() : e.trim()).filter(e => e);
+                emails = [...emails, ...pastedList];
+            }
+            if (emails.length === 0) {
+                alert("कृपया ईमेल पेस्ट करें या एक्सेल फाइल अपलोड करें!");
+                return;
+            }
+
+            document.getElementById('laserScanner').classList.remove('hidden');
+            document.getElementById('scanBtn').disabled = true;
+
+            setTimeout(() => {
+                processedResults = emails.map(email => verifyEmail(email));
+                document.getElementById('laserScanner').classList.add('hidden');
+                document.getElementById('scanBtn').disabled = false;
+                renderDashboard();
+            }, 1000);
+        }
+
+        function verifyEmail(email) {
+            const regex = /^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$/;
+            if (!regex.test(email)) return { email, domain: 'Unknown', status: 'Bad Syntax', category: 'Dead' };
+            const parts = email.split('@');
+            const user = parts[0].toLowerCase();
+            const domain = parts[1].toLowerCase();
+
+            // Bot / Computer Generated Detection
+            const botRegex = /^[a-z0-9]{10,}$|^[0-9]{6,}$|temp|bot|generator|test\d+/i;
+            const disposableDomains = ['tempmail.com', '10minutemail.com', 'mailinator.com', 'dispostable.com'];
+
+            if (disposableDomains.includes(domain) || botRegex.test(user)) {
+                return { email, domain, status: 'Computer Generated / Bot', category: 'Bot' };
+            }
+            return { email, domain, status: 'Genuine / Active', category: 'Genuine' };
+        }
+
+        function renderDashboard() {
+            document.getElementById('dashboardSection').classList.remove('hidden');
+            document.getElementById('totalCountBadge').innerText = `Total Scanned: ${processedResults.length}`;
+
+            // Populate Domain Filter
+            const domains = [...new Set(processedResults.map(r => r.domain))];
+            const select = document.getElementById('domainFilter');
+            select.innerHTML = '<option value="ALL">All Domains</option>';
+            domains.forEach(d => {
+                select.innerHTML += `<option value="${d}">${d}</option>`;
+            });
+
+            applyFilters();
+        }
+
+        function applyFilters() {
+            const domainVal = document.getElementById('domainFilter').value;
+            const tbody = document.getElementById('tableBody');
+            tbody.innerHTML = '';
+
+            const filtered = processedResults.filter(item => {
+                return domainVal === 'ALL' || item.domain === domainVal;
+            });
+
+            filtered.forEach(item => {
+                let badgeClass = 'text-green-400 bg-green-500/10 border-green-500/20';
+                if (item.category === 'Bot') badgeClass = 'text-purple-400 bg-purple-500/10 border-purple-500/20';
+                if (item.category === 'Dead') badgeClass = 'text-red-400 bg-red-500/10 border-red-500/20';
+
+                tbody.innerHTML += `
+                    <tr class="hover:bg-slate-900/60 transition">
+                        <td class="p-3 text-slate-200">${item.email}</td>
+                        <td class="p-3 text-slate-400">${item.domain}</td>
+                        <td class="p-3">${item.status}</td>
+                        <td class="p-3"><span class="px-2 py-0.5 rounded-full border ${badgeClass}">${item.category}</span></td>
+                    </tr>
+                `;
+            });
+        }
+
+        function exportData(type) {
+            let dataToExport = processedResults;
+            if (type === 'genuine') dataToExport = processedResults.filter(r => r.category === 'Genuine');
+            if (type === 'bot') dataToExport = processedResults.filter(r => r.category === 'Bot');
+            if (type === 'dead') dataToExport = processedResults.filter(r => r.category === 'Dead');
+
+            const ws = XLSX.utils.json_to_sheet(dataToExport);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "Emails");
+            XLSX.writeFile(wb, `MailSift3D_${type}_emails.xlsx`);
+        }
+    </script>
+</body>
+</html>
